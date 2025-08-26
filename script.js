@@ -14,6 +14,12 @@ const MIN_PERCENT = 0.001;
 const OVERFLOW_ADJUSTMENT = 100.1;
 const SAFE_MAX_PERCENT = 99.1;
 
+// Default goal values
+const DEFAULT_SWIM_GOAL = 24000;
+const DEFAULT_STEPS_GOAL = 1200000;
+const DEFAULT_CYCLE_GOAL = 800;
+const DEFAULT_DIVERSITY_GOAL = 16;
+
 const SUMMER_ACTIVITIES = [
   { name: "Ruck", abbreviation: "R", emoji: "🥾", unit: "miles", suggestedGoal: 100 },
   { name: "Paddleboard", abbreviation: "PB", emoji: "🏄‍♂️", unit: "miles", suggestedGoal: 15 },
@@ -156,37 +162,38 @@ const VIBE_OPTIONS = [
 
 // ===== GLOBAL STATE =====
 const appData = {
-  swimData: [1650, 1650, 1450],
-  swimGoal: 24000,
+  swimData: [0, 0, 0, 0, 0],
+  swimGoal: DEFAULT_SWIM_GOAL,
   swimActive: 1,
-  stepsData: [300000, 450000, 45000],
-  stepsGoal: 1200000,
+  stepsData: [0, 0, 0, 0, 0],
+  stepsGoal: DEFAULT_STEPS_GOAL,
   stepsActive: 1,
-  cycleData: [154, 143.9, 129],
-  cycleGoal: 800,
+  cycleData: [0, 0, 0, 0, 0],
+  cycleGoal: DEFAULT_CYCLE_GOAL,
   cycleActive: 1,
-  pickData: [0, 0, 2.3],
-  pickGoal: 20,
-  pickActive: 1,
-  pickName: "Paddleboard",
-  pickAbbreviation: "PB",
-  pickUnits: "times",
-  pickEmoji: "🏄‍",
-  diversityData1: [2, 0, 1],
-  diversityName1: "Pickleball",
-  diversityEmoji1: "🏓",
-  diversityData2: [0, 0, 1],
-  diversityName2: "Forest Bathe",
-  diversityEmoji2: "🌲",
-  diversityData3: [0],
-  diversityName3: "Ruck",
-  diversityEmoji3: "🥾",
-  diversityData4: [1, 1],
-  diversityName4: "Dance",
-  diversityEmoji4: "💃",
-  diversityGoal: 16,
-  diversityActive: 1,
-  vibeData: ["❤️❤️"]
+  pickData: [0, 0, 0, 0, 0],
+  pickGoal: 0,
+  pickActive: 0,
+  pickName: "",
+  pickAbbreviation: "",
+  pickUnits: "",
+  pickEmoji: "",
+  diversityData1: [0, 0, 0, 0, 0],
+  diversityName1: "",
+  diversityEmoji1: "",
+  diversityData2: [0, 0, 0, 0, 0],
+  diversityName2: "",
+  diversityEmoji2: "",
+  diversityData3: [0, 0, 0, 0, 0],
+  diversityName3: "",
+  diversityEmoji3: "",
+  diversityData4: [0, 0, 0, 0, 0],
+  diversityName4: "",
+  diversityEmoji4: "",
+  diversityGoal: DEFAULT_DIVERSITY_GOAL,
+  diversityActive: 0,
+  vibeData: ["", "", "", "", ""],
+  goalsExplicitlySet: false  // Track if user has actually saved goals
 };
 
 let summaries = {};
@@ -195,7 +202,18 @@ let allDiversityData = [];
 // ===== UTILITY FUNCTIONS =====
 function getElement(id) {
   const element = document.getElementById(id);
-  if (!element) {
+  // Don't warn about these expected missing elements
+  const expectedMissing = [
+    'update-progress-dropdown',
+    'share-progress-dropdown', 
+    'share-progress-dialog-save',
+    'swim-progress-name',
+    'cycle-progress-name',
+    'steps-progress-name',
+    'diversity-progress-name'
+  ];
+  
+  if (!element && !expectedMissing.includes(id)) {
     console.warn(`Element with id '${id}' not found`);
   }
   return element;
@@ -403,7 +421,8 @@ function updateDiversity() {
 
 // ===== UI INTERACTION FUNCTIONS =====
 function setVibe(text, namePrefix) {
-  const emojis = runes(text);
+  // Simple emoji splitting - works for most emojis
+  const emojis = Array.from(text || "");
   const defaultBox = twemoji.parse("⚪️");
   
   for (let i = 1; i <= 3; i++) {
@@ -519,8 +538,40 @@ function setGoals() {
 function updateProgress() {
   let diversityPastVals = [0, 0, 0, 0];
   
+  // Show/hide sections based on active status
   for (let i = 0; i < TOTAL_MONTHS; i++) {
     const monthName = MONTHS[i];
+    const panel = getElement(`${monthName}-panel`);
+    if (!panel) continue;
+    
+    const rows = panel.querySelectorAll('.section.row');
+    
+    rows.forEach(row => {
+      // Check for swim input
+      if (row.querySelector(`#${monthName}-swim-input`)) {
+        row.style.display = appData.swimActive ? '' : 'none';
+      }
+      // Check for steps input  
+      else if (row.querySelector(`#${monthName}-steps-input`)) {
+        row.style.display = appData.stepsActive ? '' : 'none';
+      }
+      // Check for cycle input
+      else if (row.querySelector(`#${monthName}-cycle-input`)) {
+        row.style.display = appData.cycleActive ? '' : 'none';
+      }
+      // Check for pick input
+      else if (row.querySelector(`#${monthName}-pick-input`)) {
+        row.style.display = appData.pickActive ? '' : 'none';
+      }
+      // Check for diversity header (contains "cool things")
+      else if (row.textContent.includes('cool things')) {
+        row.style.display = appData.diversityActive ? '' : 'none';
+      }
+      // Check for diversity checkboxes
+      else if (row.querySelector(`[id*="${monthName}-diversity-check"]`)) {
+        row.style.display = appData.diversityActive ? '' : 'none';
+      }
+    });
     
     const inputMappings = [
       { element: `${monthName}-swim-input`, data: "swimData" },
@@ -631,6 +682,18 @@ function saveGoals() {
   });
   
   if (hasUpdates) {
+    appData.goalsExplicitlySet = true;
+    
+    // Update button visibility
+    const setGoalsButton = getElement('set-goals-button');
+    const updateProgressButton = getElement('update-progress-button');
+    if (setGoalsButton?.parentNode) {
+      setGoalsButton.parentNode.classList.add('hidden');
+    }
+    if (updateProgressButton?.parentNode) {
+      updateProgressButton.parentNode.classList.remove('hidden');
+    }
+    
     createSummary(summaries);
     // Save to database
     saveUserData();
@@ -679,7 +742,33 @@ ${diversityTexts.join('\n')}`;
 
 // ===== UI SETUP FUNCTIONS =====
 function setupProgressInteractions() {
-  switchTab(0);
+  // Determine which month tab to show based on current date
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1; // getMonth() returns 0-11, we want 1-12
+  
+  let defaultTab;
+  if (currentMonth >= 1 && currentMonth <= 5) {
+    // January through May -> show May (index 0)
+    defaultTab = 0;
+  } else if (currentMonth >= 9 && currentMonth <= 12) {
+    // September through December -> show September (index 4)
+    defaultTab = 4;
+  } else if (currentMonth === 6) {
+    // June -> show June (index 1)
+    defaultTab = 1;
+  } else if (currentMonth === 7) {
+    // July -> show July (index 2)
+    defaultTab = 2;
+  } else if (currentMonth === 8) {
+    // August -> show August (index 3)
+    defaultTab = 3;
+  } else {
+    // Fallback to May
+    defaultTab = 0;
+  }
+  
+  console.log('Current month:', currentMonth, 'Selected tab:', defaultTab);
+  switchTab(defaultTab);
   
   const tabButtons = [
     { month: "may", index: 0 },
@@ -823,13 +912,20 @@ function createNavButton(name, openFunc, closeFunc, enabled) {
     if (dialog && openFunc) {
       openFunc();
       dialog.open = true;
+    } else if (openFunc) {
+      // For buttons without dialogs (like share), just call the function
+      openFunc();
     } else {
       window.alert('There was a problem!');
     }
   };
   
   button.addEventListener("click", handleClick);
-  dropdown?.addEventListener("click", handleClick);
+  
+  // Only add dropdown listener if dropdown exists
+  if (dropdown) {
+    dropdown.addEventListener("click", handleClick);
+  }
   
   if (dialog && saveButton) {
     saveButton.addEventListener("click", () => {
@@ -852,9 +948,12 @@ function createChartNotes(name, goal, friendlyName) {
     descriptor.textContent = `Getting closer to your goal of ${goal}`;
   }
   
-  const nameSpot = getElement(`${name}-progress-name`);
-  if (nameSpot && friendlyName) {
-    nameSpot.innerText = friendlyName;
+  // Only set the name for activities that have a name element (like pick)
+  if (name === 'pick') {
+    const nameSpot = getElement(`${name}-progress-name`);
+    if (nameSpot && friendlyName) {
+      nameSpot.innerText = friendlyName;
+    }
   }
 }
 
@@ -1075,6 +1174,19 @@ function createSummary(sumData) {
   const activeSections = appData.stepsActive + appData.swimActive + appData.cycleActive + 
                         appData.pickActive + appData.diversityActive;
   
+  // Avoid division by zero - if no activities are active, show empty chart
+  if (activeSections === 0) {
+    const emptyRect = rc.rectangle(3, 3, 374, 29, {
+      fill: "#fbfbf9",
+      fillStyle: "solid",
+      stroke: "#0e0f0d",
+      strokeWidth: 1.5,
+      roughness: 1.6
+    });
+    svg.appendChild(emptyRect);
+    return;
+  }
+  
   const chartData = [
     { value: (sumData.swim * appData.swimActive) / activeSections, color: "#77c7d2", fill: "cross-hatch" },
     { value: (sumData.cycle * appData.cycleActive) / activeSections, color: "#e0a4a7", fill: "cross-hatch" },
@@ -1222,7 +1334,19 @@ async function initializeSupabase() {
   }
   
   try {
+    console.log('Initializing Supabase with URL:', SUPABASE_URL);
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Supabase client created successfully');
+    
+    // Test basic connection
+    try {
+      console.log('Testing Supabase connection...');
+      const { data, error } = await supabase.from('triathlonactivity').select('count', { count: 'exact', head: true });
+      console.log('Connection test result:', { data, error });
+    } catch (testError) {
+      console.error('Connection test failed:', testError);
+    }
+    
     return true;
   } catch (error) {
     console.error('Failed to initialize Supabase:', error);
@@ -1280,21 +1404,39 @@ async function signOut() {
 
 // ===== DATABASE SYNC FUNCTIONS =====
 async function loadUserData() {
-  if (!supabase || !currentUser) return;
+  if (!supabase || !currentUser) {
+    console.log('Cannot load user data - supabase or currentUser missing:', { supabase: !!supabase, currentUser: !!currentUser });
+    return;
+  }
+  
+  console.log('Loading user data for user:', currentUser.id);
+  
   
   try {
-    const { data, error } = await supabase
+    console.log('Executing database query...');
+    
+    // Add timeout to prevent hanging
+    const queryPromise = supabase
       .from('triathlonactivity')
       .select('*')
       .eq('user_id', currentUser.id)
       .eq('year', 2025)
       .single();
     
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database query timeout')), 10000)
+    );
+    
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+    
+    console.log('Database query completed:', { data, error });
+    
     if (error && error.code !== 'PGRST116') {
       throw error;
     }
     
     if (data) {
+      console.log('Found user data, loading into app...');
       // Map database fields to app data
       appData.swimActive = data.swim_active ? 1 : 0;
       appData.swimGoal = data.swim_goal || appData.swimGoal;
@@ -1332,6 +1474,9 @@ async function loadUserData() {
       appData.diversityData4 = data.diversity_data4 || appData.diversityData4;
       
       appData.vibeData = data.vibe_data || appData.vibeData;
+      appData.goalsExplicitlySet = true; // If data exists in DB, goals were set
+      
+      console.log('AppData after loading:', appData);
       
       // Refresh UI with loaded data
       refreshAllProgress();
@@ -1422,6 +1567,47 @@ function refreshAllProgress() {
   createSummary(summaries);
 }
 
+function resetToDefaultData() {
+  // Reset appData to empty defaults with default goals and core activities active
+  appData.swimData = [0, 0, 0, 0, 0];
+  appData.swimGoal = DEFAULT_SWIM_GOAL;
+  appData.swimActive = 1;
+  appData.stepsData = [0, 0, 0, 0, 0];
+  appData.stepsGoal = DEFAULT_STEPS_GOAL;
+  appData.stepsActive = 1;
+  appData.cycleData = [0, 0, 0, 0, 0];
+  appData.cycleGoal = DEFAULT_CYCLE_GOAL;
+  appData.cycleActive = 1;
+  appData.pickData = [0, 0, 0, 0, 0];
+  appData.pickGoal = 0;
+  appData.pickActive = 0;
+  appData.pickName = "";
+  appData.pickAbbreviation = "";
+  appData.pickUnits = "";
+  appData.pickEmoji = "";
+  appData.diversityData1 = [0, 0, 0, 0, 0];
+  appData.diversityName1 = "";
+  appData.diversityEmoji1 = "";
+  appData.diversityData2 = [0, 0, 0, 0, 0];
+  appData.diversityName2 = "";
+  appData.diversityEmoji2 = "";
+  appData.diversityData3 = [0, 0, 0, 0, 0];
+  appData.diversityName3 = "";
+  appData.diversityEmoji3 = "";
+  appData.diversityData4 = [0, 0, 0, 0, 0];
+  appData.diversityName4 = "";
+  appData.diversityEmoji4 = "";
+  appData.diversityGoal = DEFAULT_DIVERSITY_GOAL;
+  appData.diversityActive = 0;
+  appData.vibeData = ["", "", "", "", ""];
+  appData.goalsExplicitlySet = false; // Reset flag when logging out
+  
+  // Refresh the UI with empty data
+  refreshAllProgress();
+  setGoals();
+  updateProgress();
+}
+
 function setupAuthListeners() {
   if (!supabase) return;
   
@@ -1432,9 +1618,14 @@ function setupAuthListeners() {
       hideLoginDialog();
       console.log('User signed in:', currentUser?.email);
       await loadUserData();
+      // Refresh the UI after loading data
+      setGoals();
+      updateProgress();
     } else if (event === 'SIGNED_OUT') {
       showLoginDialog();
       console.log('User signed out');
+      // Reset to default data when signed out
+      resetToDefaultData();
     }
   });
 }
@@ -1497,63 +1688,141 @@ function setupLoginDialog() {
 
 // ===== INITIALIZATION =====
 async function initializeApp() {
-  // Initialize Supabase
-  const supabaseInitialized = await initializeSupabase();
+  console.log('Starting app initialization...');
   
-  if (supabaseInitialized) {
-    setupAuthListeners();
-    setupLoginDialog();
+  try {
+    // Initialize basic data
+    console.log('Initializing basic data...');
+    allDiversityData = interpolateMonths(
+      appData.diversityData1, appData.diversityData2, 
+      appData.diversityData3, appData.diversityData4
+    );
     
-    // Check for existing session
-    const user = await checkSession();
-    if (!user) {
-      showLoginDialog();
+    console.log('Calculating summaries...');
+    summaries.swim = getProgressPercent(appData.swimData, appData.swimGoal, appData.swimActive);
+    summaries.cycle = getProgressPercent(appData.cycleData, appData.cycleGoal, appData.cycleActive);
+    summaries.steps = getProgressPercent(appData.stepsData, appData.stepsGoal, appData.stepsActive);
+    summaries.pick = getProgressPercent(appData.pickData, appData.pickGoal, appData.pickActive);
+    summaries.diversity = getProgressPercent(allDiversityData, appData.diversityGoal, appData.diversityActive);
+    
+    console.log('Summaries:', summaries);
+    
+    console.log('Total amount:', summaries.swim + summaries.cycle + summaries.steps + summaries.pick);
+    
+    // Try basic UI setup first
+    console.log('Creating basic UI...');
+    
+    try {
+      createUser();
+      console.log('User created successfully');
+    } catch (error) {
+      console.error('Error creating user:', error);
     }
+    
+    try {
+      createSummary(summaries);
+      console.log('Summary created successfully');
+    } catch (error) {
+      console.error('Error creating summary:', error);
+    }
+    
+    try {
+      createDropdown();
+      console.log('Dropdown created successfully');
+    } catch (error) {
+      console.error('Error creating dropdown:', error);
+    }
+    
+    // Create navigation buttons and charts
+    console.log('Creating navigation buttons...');
+    let amount = summaries.swim + summaries.cycle + summaries.steps + summaries.pick;
+    
+    createNavButton("set-goals", setGoals, saveGoals, !appData.goalsExplicitlySet);
+    createNavButton("update-progress", updateProgress, saveProgress, appData.goalsExplicitlySet);
+    createNavButton("share-progress", () => {
+      shareProgress();
+      const dialog = getElement('share-progress-dialog');
+      if (dialog) dialog.open = true;
+    }, () => {}, true);
+    
+    try {
+      fillSelects();
+      console.log('Selects filled successfully');
+    } catch (error) {
+      console.error('Error filling selects:', error);
+    }
+    
+    try {
+      setupProgressInteractions();
+      console.log('Progress interactions setup successfully');
+    } catch (error) {
+      console.error('Error setting up progress interactions:', error);
+    }
+    
+    // Create empty charts initially
+    console.log('Creating charts...');
+    try {
+      createProgress("swim", "donut-chart1", summaries.swim, "#77c7d2",
+        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/SwimWatercolor.svg?v=1743556029550",
+        appData.swimData, appData.swimGoal, appData.swimActive);
+        
+      createProgress("cycle", "donut-chart2", summaries.cycle, "#e0a4a7",
+        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/BikeWatercolor.svg?v=1743559094968",
+        appData.cycleData, appData.cycleGoal, appData.cycleActive);
+        
+      createProgress("steps", "donut-chart3", summaries.steps, "#6e9d58",
+        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/RunWatercolor.svg?v=1743559096749",
+        appData.stepsData, appData.stepsGoal, appData.stepsActive);
+        
+      createProgress("pick", "donut-chart4", summaries.pick, "#ccbf1a",
+        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/PickActivityWatercolor.svg?v=1743615466149",
+        appData.pickData, appData.pickGoal, appData.pickActive, appData.pickAbbreviation, appData.pickName);
+        
+      createProgress("diversity", "donut-chart5", summaries.diversity, "#8a7bab",
+        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/DiversityWatercolor.svg?v=1743615462400",
+        allDiversityData, appData.diversityGoal, appData.diversityActive);
+      
+      console.log('Charts created successfully');
+    } catch (error) {
+      console.error('Error creating charts:', error);
+    }
+    
+    // Now initialize Supabase and load user data
+    console.log('Initializing Supabase...');
+    const supabaseInitialized = await initializeSupabase();
+    
+    if (supabaseInitialized) {
+      setupAuthListeners();
+      setupLoginDialog();
+      
+      // Setup logout functionality
+      const logoutDropdown = getElement('logout-dropdown');
+      if (logoutDropdown) {
+        logoutDropdown.addEventListener('click', signOut);
+      }
+      
+      // Check for existing session
+      const user = await checkSession();
+      if (user) {
+        hideLoginDialog();
+        console.log('User is logged in, loading data...');
+        await loadUserData();
+        // Refresh the UI after loading data
+        setGoals();
+        updateProgress();
+        // Recreate everything with loaded data
+        console.log('Refreshing all progress with loaded data...');
+        refreshAllProgress();
+      } else {
+        showLoginDialog();
+      }
+    }
+    
+    console.log('App initialization complete');
+    
+  } catch (error) {
+    console.error('Error during initialization:', error);
   }
-  
-  // Initialize app data and UI
-  allDiversityData = interpolateMonths(
-    appData.diversityData1, appData.diversityData2, 
-    appData.diversityData3, appData.diversityData4
-  );
-  
-  summaries.swim = getProgressPercent(appData.swimData, appData.swimGoal, appData.swimActive);
-  summaries.cycle = getProgressPercent(appData.cycleData, appData.cycleGoal, appData.cycleActive);
-  summaries.steps = getProgressPercent(appData.stepsData, appData.stepsGoal, appData.stepsActive);
-  summaries.pick = getProgressPercent(appData.pickData, appData.pickGoal, appData.pickActive);
-  summaries.diversity = getProgressPercent(allDiversityData, appData.diversityGoal, appData.diversityActive);
-  
-  const amount = summaries.swim + summaries.cycle + summaries.steps + summaries.pick;
-  
-  createProgress("swim", "donut-chart1", summaries.swim, "#77c7d2",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/SwimWatercolor.svg?v=1743556029550",
-    appData.swimData, appData.swimGoal, appData.swimActive);
-    
-  createProgress("cycle", "donut-chart2", summaries.cycle, "#e0a4a7",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/BikeWatercolor.svg?v=1743559094968",
-    appData.cycleData, appData.cycleGoal, appData.cycleActive);
-    
-  createProgress("steps", "donut-chart3", summaries.steps, "#6e9d58",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/RunWatercolor.svg?v=1743559096749",
-    appData.stepsData, appData.stepsGoal, appData.stepsActive);
-    
-  createProgress("pick", "donut-chart4", summaries.pick, "#ccbf1a",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/PickActivityWatercolor.svg?v=1743615466149",
-    appData.pickData, appData.pickGoal, appData.pickActive, appData.pickAbbreviation, appData.pickName);
-    
-  createProgress("diversity", "donut-chart5", summaries.diversity, "#8a7bab",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/DiversityWatercolor.svg?v=1743615462400",
-    allDiversityData, appData.diversityGoal, appData.diversityActive);
-  
-  createNavButton("set-goals", setGoals, saveGoals, amount === 0);
-  createNavButton("update-progress", updateProgress, saveProgress, amount > 0);
-  createNavButton("share-progress", shareProgress, () => {}, true);
-  
-  createUser();
-  createSummary(summaries);
-  createDropdown();
-  fillSelects();
-  setupProgressInteractions();
 }
 
 // Start the application
