@@ -368,19 +368,19 @@ function updateActivityProgress(activityName, chartId, color, imagePath, dataKey
 
 function updateSwimming() {
   updateActivityProgress("swim", "donut-chart1", "#77c7d2", 
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/SwimWatercolor.svg?v=1743556029550",
+    "assets/swim-watercolor.svg",
     "swimData", "swimGoal", "swimActive");
 }
 
 function updateSteps() {
   updateActivityProgress("steps", "donut-chart3", "#6e9d58",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/RunWatercolor.svg?v=1743559096749",
+    "assets/run-watercolor.svg",
     "stepsData", "stepsGoal", "stepsActive");
 }
 
 function updateCycle() {
   updateActivityProgress("cycle", "donut-chart2", "#e0a4a7",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/BikeWatercolor.svg?v=1743559094968",
+    "assets/bike-watercolor.svg",
     "cycleData", "cycleGoal", "cycleActive");
   
   const chartElement = getElement("cycle-progress-chart");
@@ -391,11 +391,11 @@ function updateCycle() {
 
 function updatePick() {
   updateActivityProgress("pick", "donut-chart4", "#ccbf1a",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/PickActivityWatercolor.svg?v=1743615466149",
+    "assets/pick-activity-watercolor.svg",
     "pickData", "pickGoal", "pickActive", appData.pickAbbreviation);
   
   CreateProgressDetail("pick", "donut-chart4", summaries.pick, "#ccbf1a",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/PickActivityWatercolor.svg?v=1743615466149",
+    "assets/pick-activity-watercolor.svg",
     appData.pickData, appData.pickGoal, appData.pickAbbreviation, appData.pickName, appData.pickActive);
 }
 
@@ -408,7 +408,7 @@ function updateDiversity() {
   summaries.diversity = getProgressPercent(allDiversityData, appData.diversityGoal, appData.diversityActive);
   
   makeDonut("donut-chart5", summaries.diversity, "#8a7bab",
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/DiversityWatercolor.svg?v=1743615462400",
+    "assets/diversity-watercolor.svg",
     appData.diversityActive);
   
   const chartElement = getElement("diversity-progress-chart");
@@ -1149,7 +1149,7 @@ function createUser() {
   
   const img = document.createElementNS("http://www.w3.org/2000/svg", "image");
   img.setAttributeNS(null, "href", 
-    "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/louise_cackle.png?v=1743771202084");
+    "assets/louise-cackle.png");
   img.setAttribute("x", 7);
   img.setAttribute("y", 7);
   img.setAttribute("width", "60");
@@ -1763,23 +1763,23 @@ async function initializeApp() {
     console.log('Creating charts...');
     try {
       createProgress("swim", "donut-chart1", summaries.swim, "#77c7d2",
-        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/SwimWatercolor.svg?v=1743556029550",
+        "assets/swim-watercolor.svg",
         appData.swimData, appData.swimGoal, appData.swimActive);
         
       createProgress("cycle", "donut-chart2", summaries.cycle, "#e0a4a7",
-        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/BikeWatercolor.svg?v=1743559094968",
+        "assets/bike-watercolor.svg",
         appData.cycleData, appData.cycleGoal, appData.cycleActive);
         
       createProgress("steps", "donut-chart3", summaries.steps, "#6e9d58",
-        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/RunWatercolor.svg?v=1743559096749",
+        "assets/run-watercolor.svg",
         appData.stepsData, appData.stepsGoal, appData.stepsActive);
         
       createProgress("pick", "donut-chart4", summaries.pick, "#ccbf1a",
-        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/PickActivityWatercolor.svg?v=1743615466149",
+        "assets/pick-activity-watercolor.svg",
         appData.pickData, appData.pickGoal, appData.pickActive, appData.pickAbbreviation, appData.pickName);
         
       createProgress("diversity", "donut-chart5", summaries.diversity, "#8a7bab",
-        "https://cdn.glitch.global/596ecb40-0329-4e4c-b6ba-1d1a47d106a0/DiversityWatercolor.svg?v=1743615462400",
+        "assets/diversity-watercolor.svg",
         allDiversityData, appData.diversityGoal, appData.diversityActive);
       
       console.log('Charts created successfully');
