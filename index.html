@@ -21,8 +21,18 @@
     ></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="landing-styles.css">
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="ui-manager.js"></script>
+    <script src="landing-page.js"></script>
   </head>
   <body>
+    <!-- Landing Section - Shown when not authenticated -->
+    <div id="landing-section" style="display: none;"></div>
+    
+    <!-- App Section - Shown when authenticated -->
+    <div id="app-section" style="display: none;">
     <div id="header">
       <img
         width="550px"
@@ -505,26 +515,6 @@
     </div>
   </wired-dialog>
 
-  <wired-dialog id="login-dialog" elevation="2">
-    <div class="dialog">
-      <span>🏊‍♂️ Welcome to Adventure Triathlon!</span>
-    </div>
-    <div style="padding: 16px;">
-      <p class="progressDetailText">Sign in with your email to save your progress and sync across devices.</p>
-      
-      <div class="goal-line">
-        <span>Email: </span>
-        <wired-input id="login-email" type="email" placeholder="your@email.com" style="width: 250px;"></wired-input>
-      </div>
-      
-      <div id="login-status" class="progressDetailText" style="margin: 10px 0; color: #0e0f0d;"></div>
-      
-      <div style="text-align: right; padding: 16px 0;">
-        <wired-button class="button" id="login-send-magic-link" elevation="3">Send Magic Link</wired-button>
-      </div>
-    </div>
-  </wired-dialog>
-
           
       <div id="footer">
         <img
@@ -536,7 +526,26 @@
         >
       </div>
     </div>
+    </div> <!-- End app-section -->
 
     <script src="script.js"></script>
+    <script>
+      // Initialize the application
+      document.addEventListener('DOMContentLoaded', async () => {
+        // Create landing page HTML
+        const landingSection = document.getElementById('landing-section');
+        if (landingSection) {
+          landingSection.innerHTML = createLandingHTML();
+        }
+        
+        // Initialize UI manager to handle auth state
+        await uiManager.initialize();
+        
+        // Initialize landing borders after UI is set up
+        if (uiManager.currentView === 'landing') {
+          setTimeout(() => initializeLandingBorders(), 200);
+        }
+      });
+    </script>
   </body>
 </html>

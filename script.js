@@ -1,8 +1,6 @@
-// ===== SUPABASE CONFIGURATION =====
-const SUPABASE_URL = 'https://awbmqsuoqretisrhkpqe.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3Ym1xc3VvcXJldGlzcmhrcHFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzQxODIzMDksImV4cCI6MTk4OTc1ODMwOX0.leAvGr6lASVRC20N0hm9UsL8BbW9CXw2LuG76xDhOIw';
-
-let supabase;
+// ===== AUTHENTICATION =====
+// Using centralized auth from auth.js and config.js
+let supabase = typeof supabaseClient !== 'undefined' ? supabaseClient : null;
 let currentUser = null;
 
 // ===== CONSTANTS =====
@@ -1141,27 +1139,86 @@ function makeDonut(elementId, percent, color, path, active, overlay) {
   }
 }
 
-function createUser() {
+function createUser(avatarUrl = null, friendlyName = null) {
   const svg = getElement("user-info");
   if (!svg) return;
   
+  // Clear any existing content
+  while (svg.firstChild) {
+    svg.removeChild(svg.firstChild);
+  }
+  
   const rc = rough.svg(svg);
   
-  const img = document.createElementNS("http://www.w3.org/2000/svg", "image");
-  img.setAttributeNS(null, "href", 
-    "assets/louise-cackle.png");
-  img.setAttribute("x", 7);
-  img.setAttribute("y", 7);
-  img.setAttribute("width", "60");
-  img.setAttribute("height", "60");
-  img.setAttribute("class", "center-image");
-  svg.appendChild(img);
+  if (avatarUrl) {
+    // User has an avatar image
+    const img = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    img.setAttributeNS(null, "href", avatarUrl);
+    img.setAttribute("x", 7);
+    img.setAttribute("y", 7);
+    img.setAttribute("width", "60");
+    img.setAttribute("height", "60");
+    img.setAttribute("class", "center-image");
+    
+    // Add tooltip if friendly name is provided
+    if (friendlyName) {
+      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      title.textContent = friendlyName;
+      img.appendChild(title);
+    }
+    
+    svg.appendChild(img);
+  } else {
+    // No avatar - create initials fallback
+    const initials = getInitials(friendlyName);
+    
+    // Create a background circle
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", "37");
+    circle.setAttribute("cy", "37");
+    circle.setAttribute("r", "28");
+    circle.setAttribute("fill", "#f0f0f0");
+    svg.appendChild(circle);
+    
+    // Create text element for initials
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", "37");
+    text.setAttribute("y", "37");
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("dominant-baseline", "middle");
+    text.setAttribute("font-family", "Special Elite, cursive");
+    text.setAttribute("font-size", "24");
+    text.setAttribute("fill", "#4806d8");
+    text.textContent = initials;
+    
+    // Add tooltip if friendly name is provided
+    if (friendlyName) {
+      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      title.textContent = friendlyName;
+      text.appendChild(title);
+    }
+    
+    svg.appendChild(text);
+  }
   
   svg.appendChild(rc.circle(37, 37, 65, {
     stroke: "#4806d8",
     strokeWidth: 2,
     roughness: 1.5
   }));
+}
+
+function getInitials(name) {
+  if (!name) {
+    // If no name, try to get from email
+    if (currentUser && currentUser.email) {
+      return currentUser.email.substring(0, 2).toUpperCase();
+    }
+    return "??";
+  }
+  
+  // Get first 2 letters of the friendly name
+  return name.substring(0, 2).toUpperCase();
 }
 
 function createSummary(sumData) {
@@ -1328,81 +1385,61 @@ function setUpEmojiButton(emojiName) {
 
 // ===== AUTHENTICATION FUNCTIONS =====
 async function initializeSupabase() {
-  if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
-    console.warn('Please configure your Supabase credentials in script.js');
+  // Supabase is already initialized in config.js
+  if (!supabase) {
+    console.error('Supabase client not available');
     return false;
   }
-  
-  try {
-    console.log('Initializing Supabase with URL:', SUPABASE_URL);
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('Supabase client created successfully');
-    
-    // Test basic connection
-    try {
-      console.log('Testing Supabase connection...');
-      const { data, error } = await supabase.from('triathlonactivity').select('count', { count: 'exact', head: true });
-      console.log('Connection test result:', { data, error });
-    } catch (testError) {
-      console.error('Connection test failed:', testError);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Failed to initialize Supabase:', error);
-    return false;
-  }
+  console.log('Using centralized Supabase client');
+  return true;
 }
 
 async function checkSession() {
-  if (!supabase) return null;
-  
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    
-    currentUser = session?.user || null;
-    return currentUser;
-  } catch (error) {
-    console.error('Session check failed:', error);
-    return null;
+  // Use centralized auth manager
+  if (typeof authManager !== 'undefined') {
+    currentUser = authManager.getUser();
   }
+  return currentUser;
 }
 
-async function sendMagicLink(email) {
-  if (!supabase) {
-    throw new Error('Supabase not initialized');
-  }
-  
-  try {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email,
-      options: {
-        emailRedirectTo: window.location.origin
-      }
-    });
-    
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error('Magic link failed:', error);
-    throw error;
-  }
-}
+// sendMagicLink removed - using landing.html instead
 
 async function signOut() {
-  if (!supabase) return;
-  
-  try {
-    await supabase.auth.signOut();
-    currentUser = null;
-    showLoginDialog();
-  } catch (error) {
-    console.error('Sign out failed:', error);
+  // Use centralized auth manager
+  if (typeof authManager !== 'undefined') {
+    await authManager.signOut();
   }
 }
 
 // ===== DATABASE SYNC FUNCTIONS =====
+async function loadUserInfo() {
+  if (!supabase || !currentUser) {
+    console.log('Cannot load user info - supabase or currentUser missing');
+    return null;
+  }
+  
+  try {
+    console.log('Loading user info for email:', currentUser.email);
+    
+    const { data, error } = await supabase
+      .from('UserInfo')
+      .select('avatar_url, friendly_name')
+      .eq('email', currentUser.email)
+      .single();
+    
+    if (error) {
+      console.error('Error loading user info:', error);
+      return null;
+    }
+    
+    console.log('User info loaded:', data);
+    return data;
+  } catch (error) {
+    console.error('Error loading user info:', error);
+    return null;
+  }
+}
+
 async function loadUserData() {
   if (!supabase || !currentUser) {
     console.log('Cannot load user data - supabase or currentUser missing:', { supabase: !!supabase, currentUser: !!currentUser });
@@ -1609,88 +1646,55 @@ function resetToDefaultData() {
 }
 
 function setupAuthListeners() {
-  if (!supabase) return;
-  
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    currentUser = session?.user || null;
-    
-    if (event === 'SIGNED_IN') {
-      hideLoginDialog();
-      console.log('User signed in:', currentUser?.email);
-      await loadUserData();
-      // Refresh the UI after loading data
-      setGoals();
-      updateProgress();
-    } else if (event === 'SIGNED_OUT') {
-      showLoginDialog();
-      console.log('User signed out');
-      // Reset to default data when signed out
-      resetToDefaultData();
-    }
-  });
-}
-
-function showLoginDialog() {
-  const dialog = getElement('login-dialog');
-  if (dialog) {
-    dialog.open = true;
+  // Auth listeners are now handled in auth.js and ui-manager.js
+  if (typeof authManager !== 'undefined') {
+    authManager.onAuthStateChange(async (event, user) => {
+      currentUser = user;
+      
+      if (event === 'SIGNED_IN' && user) {
+        console.log('User signed in:', user.email);
+        await loadUserData();
+        // Refresh the UI after loading data
+        setGoals();
+        updateProgress();
+      }
+    });
   }
 }
 
-function hideLoginDialog() {
-  const dialog = getElement('login-dialog');
-  if (dialog) {
-    dialog.open = false;
-  }
-}
+// Login dialog functions removed - using landing.html instead
 
-function setupLoginDialog() {
-  const sendButton = getElement('login-send-magic-link');
-  const emailInput = getElement('login-email');
-  const statusDiv = getElement('login-status');
-  
-  if (!sendButton || !emailInput || !statusDiv) return;
-  
-  sendButton.addEventListener('click', async () => {
-    const email = emailInput.value.trim();
-    
-    if (!email) {
-      statusDiv.innerHTML = 'Please enter your email address.';
-      return;
-    }
-    
-    if (!supabase) {
-      statusDiv.innerHTML = 'Authentication not configured. Please set up Supabase credentials.';
-      return;
-    }
-    
-    try {
-      statusDiv.innerHTML = 'Sending magic link...';
-      sendButton.disabled = true;
-      
-      await sendMagicLink(email);
-      
-      statusDiv.innerHTML = `✅ Magic link sent to ${email}! Check your inbox and click the link to sign in.`;
-      emailInput.value = '';
-    } catch (error) {
-      statusDiv.innerHTML = `❌ Failed to send magic link: ${error.message}`;
-    } finally {
-      sendButton.disabled = false;
-    }
-  });
-  
-  emailInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      sendButton.click();
-    }
-  });
-}
+// setupLoginDialog removed - using landing.html instead
 
 // ===== INITIALIZATION =====
 async function initializeApp() {
   console.log('Starting app initialization...');
   
   try {
+    // Check authentication using centralized auth
+    console.log('Checking authentication...');
+    if (typeof authManager !== 'undefined') {
+      currentUser = authManager.getUser();
+    }
+    
+    if (!currentUser) {
+      // No active session - UI manager will handle showing landing page
+      console.log('No active session, showing landing page...');
+      return;
+    }
+    
+    console.log('User authenticated:', currentUser.email);
+    
+    // Load user info and data from database
+    console.log('Loading user info from database...');
+    const userInfo = await loadUserInfo();
+    
+    console.log('Loading user data from database...');
+    await loadUserData();
+    
+    // Refresh goals UI after loading data
+    setGoals();
+    
     // Initialize basic data
     console.log('Initializing basic data...');
     allDiversityData = interpolateMonths(
@@ -1713,7 +1717,7 @@ async function initializeApp() {
     console.log('Creating basic UI...');
     
     try {
-      createUser();
+      createUser(userInfo?.avatar_url, userInfo?.friendly_name);
       console.log('User created successfully');
     } catch (error) {
       console.error('Error creating user:', error);
@@ -1793,7 +1797,7 @@ async function initializeApp() {
     
     if (supabaseInitialized) {
       setupAuthListeners();
-      setupLoginDialog();
+      // setupLoginDialog removed - using landing.html
       
       // Setup logout functionality
       const logoutDropdown = getElement('logout-dropdown');
@@ -1804,7 +1808,7 @@ async function initializeApp() {
       // Check for existing session
       const user = await checkSession();
       if (user) {
-        hideLoginDialog();
+        // No longer need to hide login dialog - handled by UI manager
         console.log('User is logged in, loading data...');
         await loadUserData();
         // Refresh the UI after loading data
@@ -1814,7 +1818,8 @@ async function initializeApp() {
         console.log('Refreshing all progress with loaded data...');
         refreshAllProgress();
       } else {
-        showLoginDialog();
+        // Authentication is handled by ui-manager.js
+        console.log('User not authenticated, landing page will be shown');
       }
     }
     
