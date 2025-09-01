@@ -698,6 +698,308 @@ function saveGoals() {
   }
 }
 
+// ===== AVATAR CREATION (MODULAR) =====
+function createAvatarSVG(avatarUrl, friendlyName, isCurrentUser = false) {
+  // Create SVG element with standard dimensions (74x74)
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "74");
+  svg.setAttribute("height", "74");
+  
+  const rc = rough.svg(svg);
+  
+  if (avatarUrl) {
+    // User has an avatar image
+    const img = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    img.setAttributeNS(null, "href", avatarUrl);
+    img.setAttribute("x", "7");
+    img.setAttribute("y", "7");
+    img.setAttribute("width", "60");
+    img.setAttribute("height", "60");
+    img.setAttribute("class", "center-image");
+    
+    // Add error handler for image loading
+    img.onerror = () => {
+      // Remove failed image and add initials instead
+      svg.removeChild(img);
+      addInitialsToSVG(svg, friendlyName);
+    };
+    
+    // Add tooltip if friendly name is provided
+    if (friendlyName) {
+      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      title.textContent = friendlyName;
+      img.appendChild(title);
+    }
+    
+    svg.appendChild(img);
+  } else {
+    // No avatar - create initials fallback
+    addInitialsToSVG(svg, friendlyName);
+  }
+  
+  // Add the rough circle border
+  // Use purple (#4806d8) for current user (both main page and friends), black for other users
+  const borderColor = isCurrentUser ? "#4806d8" : "#0e0f0d";
+  svg.appendChild(rc.circle(37, 37, 65, {
+    stroke: borderColor,
+    strokeWidth: 2,
+    roughness: 1.5
+  }));
+  
+  // Add SVG tooltip to the border if friendly name is provided
+  if (friendlyName) {
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = friendlyName;
+    svg.appendChild(title);
+  }
+  
+  return svg;
+}
+
+function addInitialsToSVG(svg, friendlyName) {
+  const initials = getInitials(friendlyName);
+  
+  // Create a background circle
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", "37");
+  circle.setAttribute("cy", "37");
+  circle.setAttribute("r", "28");
+  circle.setAttribute("fill", "#f0f0f0");
+  svg.appendChild(circle);
+  
+  // Create text element for initials
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text.setAttribute("x", "37");
+  text.setAttribute("y", "37");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("dominant-baseline", "middle");
+  text.setAttribute("font-family", "Special Elite, cursive");
+  text.setAttribute("font-size", "24");
+  text.setAttribute("fill", "#4806d8");
+  text.textContent = initials;
+  
+  // Add tooltip if friendly name is provided
+  if (friendlyName) {
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = friendlyName;
+    text.appendChild(title);
+  }
+  
+  svg.appendChild(text);
+}
+
+// ===== FRIENDS FUNCTIONALITY =====
+function setupFriendsButtons() {
+  // Setup Friends dialog close button
+  const friendsCloseButton = getElement('friends-dialog-close');
+  if (friendsCloseButton) {
+    friendsCloseButton.addEventListener('click', () => {
+      const dialog = getElement('friends-dialog');
+      if (dialog) dialog.open = false;
+    });
+  }
+}
+
+async function showFriends() {
+  console.log('showFriends function called');
+  
+  const dialog = getElement('friends-dialog');
+  const friendsList = getElement('friends-list');
+  
+  console.log('Dialog element:', dialog);
+  console.log('Friends list element:', friendsList);
+  
+  if (!dialog || !friendsList) {
+    console.error('Friends dialog elements not found', { dialog, friendsList });
+    return;
+  }
+  
+  // Initialize Supabase if needed
+  if (!supabase && typeof supabaseClient !== 'undefined') {
+    supabase = supabaseClient;
+  }
+  
+  // Check if Supabase is initialized
+  if (!supabase) {
+    console.error('Supabase not initialized');
+    friendsList.innerHTML = '<div style="padding: 20px; text-align: center;">Please log in to see friends</div>';
+    dialog.open = true;
+    return;
+  }
+  
+  // Check if user is authenticated
+  if (!currentUser) {
+    console.error('User not authenticated');
+    friendsList.innerHTML = '<div style="padding: 20px; text-align: center;">Please log in to see friends</div>';
+    dialog.open = true;
+    return;
+  }
+  
+  // Show loading state
+  friendsList.innerHTML = '<div style="padding: 20px; text-align: center;">Loading friends...</div>';
+  dialog.open = true;
+  
+  try {
+    
+    // Query the user_progress_summary view
+    // The view joins triathlon_activities which has the year column
+    const { data: friends, error } = await supabase
+      .from('user_progress_summary')
+      .select('*')
+      .eq('year', 2025)
+      .order('friendly_name', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching friends data:', error);
+      console.error('Error details:', error.message, error.details, error.hint);
+      friendsList.innerHTML = `<div style="padding: 20px; text-align: center;">Error loading friends data: ${error.message || 'Unknown error'}</div>`;
+      return;
+    }
+    
+    if (!friends || friends.length === 0) {
+      friendsList.innerHTML = '<div style="padding: 20px; text-align: center;">No friends found</div>';
+      return;
+    }
+    
+    // Clear the loading state
+    friendsList.innerHTML = '';
+    
+    // Render each friend
+    friends.forEach(friend => {
+      const friendRow = createFriendRow(friend);
+      friendsList.appendChild(friendRow);
+    });
+    
+  } catch (error) {
+    console.error('Error in showFriends:', error);
+    friendsList.innerHTML = '<div style="padding: 20px; text-align: center;">Error loading friends</div>';
+  }
+}
+
+function createFriendRow(friendData) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display: flex; align-items: center; padding: 10px; gap: 15px;';
+  
+  // Create avatar using the modular function
+  const isCurrentUser = currentUser && friendData.user_id === currentUser.id;
+  const avatarSVG = createAvatarSVG(friendData.avatar_url, friendData.friendly_name, isCurrentUser);
+  
+  // Add the avatar to the row
+  row.appendChild(avatarSVG);
+  
+  // Create progress bar container
+  const progressContainer = document.createElement('div');
+  progressContainer.style.cssText = 'flex: 1;';
+  
+  // Calculate progress using the same logic as main app
+  const friendSummaries = calculateFriendProgress(friendData);
+  
+  if (friendSummaries.total > 0) {
+    // Create progress bar SVG
+    const progressSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    progressSvg.setAttribute("width", "380");
+    progressSvg.setAttribute("height", "35");
+    progressSvg.setAttribute("viewBox", "0 0 380 35");
+    
+    const rcProgress = rough.svg(progressSvg);
+    
+    // Reuse the createSummary logic but for individual friend
+    const activeSections = friendData.swim_active + friendData.steps_active + friendData.cycle_active + 
+                          friendData.pick_active + friendData.diversity_active;
+    
+    let total = 0; // Initialize total for tooltip
+    
+    if (activeSections === 0) {
+      // Empty bar
+      const emptyRect = rcProgress.rectangle(3, 3, 374, 29, {
+        fill: "#fbfbf9",
+        fillStyle: "solid",
+        stroke: "#0e0f0d",
+        strokeWidth: 1.5,
+        roughness: 1.6
+      });
+      progressSvg.appendChild(emptyRect);
+      total = 0; // No active sections means 0% complete
+    } else {
+      const chartData = [
+        { value: (friendSummaries.swim * friendData.swim_active) / activeSections, color: "#77c7d2", fill: "cross-hatch" },
+        { value: (friendSummaries.cycle * friendData.cycle_active) / activeSections, color: "#e0a4a7", fill: "cross-hatch" },
+        { value: (friendSummaries.steps * friendData.steps_active) / activeSections, color: "#6e9d58", fill: "cross-hatch" },
+        { value: (friendSummaries.pick * friendData.pick_active) / activeSections, color: "#ccbf1a", fill: "cross-hatch" },
+        { value: (friendSummaries.diversity * friendData.diversity_active) / activeSections, color: "#8a7bab", fill: "cross-hatch" }
+      ];
+      
+      total = chartData.reduce((sum, d) => sum + d.value, 0);
+      if (total < 100) {
+        chartData.push({ value: 100 - total, color: "#fbfbf9", fill: "solid" });
+      }
+      
+      const barWidth = 374;
+      const barHeight = 29;
+      let currentX = 3;
+      
+      chartData.forEach(segment => {
+        const segmentWidth = (segment.value / 100) * barWidth;
+        if (segmentWidth > 0) {
+          const rect = rcProgress.rectangle(currentX, 3, segmentWidth, barHeight, {
+            fill: segment.color,
+            fillStyle: segment.fill,
+            stroke: "#0e0f0d",
+            strokeWidth: 1.5,
+            roughness: 1.6
+          });
+          progressSvg.appendChild(rect);
+          currentX += segmentWidth;
+        }
+      });
+    }
+    
+    // Add tooltip showing total percentage
+    const totalPercentage = Math.min(100, total).toFixed(1);
+    const tooltipTitle = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    tooltipTitle.textContent = `${totalPercentage}% complete`;
+    progressSvg.appendChild(tooltipTitle);
+    
+    progressContainer.appendChild(progressSvg);
+  } else {
+    // Show "Not started" text
+    const notStartedText = document.createElement('div');
+    notStartedText.textContent = 'Not started';
+    notStartedText.style.cssText = 'font-family: "Gloria Hallelujah", cursive; font-size: 16px; color: #6B6B6B; padding: 8px 0;';
+    progressContainer.appendChild(notStartedText);
+  }
+  
+  row.appendChild(progressContainer);
+  
+  return row;
+}
+
+function calculateFriendProgress(friendData) {
+  // Calculate progress for each activity using the same logic as main app
+  const swimProgress = getProgressPercent(friendData.swim_data || [0,0,0,0,0], friendData.swim_goal || DEFAULT_SWIM_GOAL, friendData.swim_active ? 1 : 0);
+  const cycleProgress = getProgressPercent(friendData.cycle_data || [0,0,0,0,0], friendData.cycle_goal || DEFAULT_CYCLE_GOAL, friendData.cycle_active ? 1 : 0);
+  const stepsProgress = getProgressPercent(friendData.steps_data || [0,0,0,0,0], friendData.steps_goal || DEFAULT_STEPS_GOAL, friendData.steps_active ? 1 : 0);
+  const pickProgress = getProgressPercent(friendData.pick_data || [0,0,0,0,0], friendData.pick_goal || 0, friendData.pick_active ? 1 : 0);
+  
+  // Calculate diversity progress - need to interpolate like main app
+  const allDiversityData = interpolateMonths(
+    friendData.diversity_data1 || [0,0,0,0,0],
+    friendData.diversity_data2 || [0,0,0,0,0],
+    friendData.diversity_data3 || [0,0,0,0,0],
+    friendData.diversity_data4 || [0,0,0,0,0]
+  );
+  const diversityProgress = getProgressPercent(allDiversityData, friendData.diversity_goal || DEFAULT_DIVERSITY_GOAL, friendData.diversity_active ? 1 : 0);
+  
+  return {
+    swim: swimProgress,
+    cycle: cycleProgress,
+    steps: stepsProgress,
+    pick: pickProgress,
+    diversity: diversityProgress,
+    total: swimProgress + cycleProgress + stepsProgress + pickProgress + diversityProgress
+  };
+}
+
 function shareProgress() {
   const totalPercent = ((summaries.swim + summaries.cycle + summaries.steps + summaries.pick + summaries.diversity) / 5).toFixed(1);
   const values = {
@@ -1140,72 +1442,21 @@ function makeDonut(elementId, percent, color, path, active, overlay) {
 }
 
 function createUser(avatarUrl = null, friendlyName = null) {
-  const svg = getElement("user-info");
-  if (!svg) return;
+  const svgContainer = getElement("user-info");
+  if (!svgContainer) return;
   
   // Clear any existing content
-  while (svg.firstChild) {
-    svg.removeChild(svg.firstChild);
+  while (svgContainer.firstChild) {
+    svgContainer.removeChild(svgContainer.firstChild);
   }
   
-  const rc = rough.svg(svg);
+  // Create avatar using the modular function (current user always gets purple border)
+  const avatarSVG = createAvatarSVG(avatarUrl, friendlyName, true);
   
-  if (avatarUrl) {
-    // User has an avatar image
-    const img = document.createElementNS("http://www.w3.org/2000/svg", "image");
-    img.setAttributeNS(null, "href", avatarUrl);
-    img.setAttribute("x", 7);
-    img.setAttribute("y", 7);
-    img.setAttribute("width", "60");
-    img.setAttribute("height", "60");
-    img.setAttribute("class", "center-image");
-    
-    // Add tooltip if friendly name is provided
-    if (friendlyName) {
-      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-      title.textContent = friendlyName;
-      img.appendChild(title);
-    }
-    
-    svg.appendChild(img);
-  } else {
-    // No avatar - create initials fallback
-    const initials = getInitials(friendlyName);
-    
-    // Create a background circle
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", "37");
-    circle.setAttribute("cy", "37");
-    circle.setAttribute("r", "28");
-    circle.setAttribute("fill", "#f0f0f0");
-    svg.appendChild(circle);
-    
-    // Create text element for initials
-    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x", "37");
-    text.setAttribute("y", "37");
-    text.setAttribute("text-anchor", "middle");
-    text.setAttribute("dominant-baseline", "middle");
-    text.setAttribute("font-family", "Special Elite, cursive");
-    text.setAttribute("font-size", "24");
-    text.setAttribute("fill", "#4806d8");
-    text.textContent = initials;
-    
-    // Add tooltip if friendly name is provided
-    if (friendlyName) {
-      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-      title.textContent = friendlyName;
-      text.appendChild(title);
-    }
-    
-    svg.appendChild(text);
+  // Transfer all children from the created SVG to the container
+  while (avatarSVG.firstChild) {
+    svgContainer.appendChild(avatarSVG.firstChild);
   }
-  
-  svg.appendChild(rc.circle(37, 37, 65, {
-    stroke: "#4806d8",
-    strokeWidth: 2,
-    roughness: 1.5
-  }));
 }
 
 function getInitials(name) {
@@ -1241,6 +1492,12 @@ function createSummary(sumData) {
       roughness: 1.6
     });
     svg.appendChild(emptyRect);
+    
+    // Add tooltip showing 0% complete
+    const tooltipTitle = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    tooltipTitle.textContent = "0.0% complete";
+    svg.appendChild(tooltipTitle);
+    
     return;
   }
   
@@ -1273,6 +1530,12 @@ function createSummary(sumData) {
     svg.appendChild(rect);
     currentX += segmentWidth;
   });
+  
+  // Add tooltip showing total percentage
+  const totalPercentage = Math.min(100, total).toFixed(1);
+  const tooltipTitle = document.createElementNS("http://www.w3.org/2000/svg", "title");
+  tooltipTitle.textContent = `${totalPercentage}% complete`;
+  svg.appendChild(tooltipTitle);
 }
 
 function CreateProgressDetail(name, elementId, percent, color, path, data, goal, overlay, friendlyName, active) {
@@ -1657,6 +1920,8 @@ function setupAuthListeners() {
         // Refresh the UI after loading data
         setGoals();
         updateProgress();
+        // Setup friends buttons after auth
+        setupFriendsButtons();
       }
     });
   }
@@ -1749,6 +2014,15 @@ async function initializeApp() {
       if (dialog) dialog.open = true;
     }, () => {}, true);
     
+    // Setup See Friends button using the same pattern
+    createNavButton("see-friends", () => {
+      console.log('See Friends nav button clicked');
+      showFriends();
+    }, () => {}, true);
+    
+    // Setup friends functionality (dialog close button)
+    setupFriendsButtons();
+    
     try {
       fillSelects();
       console.log('Selects filled successfully');
@@ -1817,6 +2091,8 @@ async function initializeApp() {
         // Recreate everything with loaded data
         console.log('Refreshing all progress with loaded data...');
         refreshAllProgress();
+        // Setup friends buttons
+        setupFriendsButtons();
       } else {
         // Authentication is handled by ui-manager.js
         console.log('User not authenticated, landing page will be shown');
