@@ -7,8 +7,8 @@ function createLandingHTML() {
         </div>
         
         <div class="hero-text" id="landing-hero">
-            <h1 style="font-family: 'Special Elite', cursive;">Track Your Active Summer Journey</h1>
-            <p class="tagline" style="font-family: 'Gloria Hallelujah', cursive;">Set goals. Track progress. Achieve greatness.</p>
+            <h1>Track Your Active Summer Journey</h1>
+            <p class="tagline">Set goals. Track progress. Achieve greatness.</p>
             
             <div class="features">
                 <div class="feature">
@@ -41,31 +41,20 @@ function createLandingHTML() {
             
             <div class="divider">or</div>
             
-            <input type="email" class="email-input" id="email-input" placeholder="Enter your email..." style="
-                width: 80%;
-                max-width: 300px;
-                padding: 10px;
-                margin: 10px auto;
-                display: block;
-                border: 2px solid #333;
-                border-radius: 4px;
-                font-family: 'Gloria Hallelujah', cursive;
-                font-size: 16px;
-                text-align: center;
-            ">
+            <input type="email" class="email-input" id="email-input" placeholder="Enter your email...">
             <button class="auth-button magic-btn" id="magic-link-btn">
                 Send Magic Link
             </button>
         </div>
-    </div>
-    
-    <div id="landing-footer" style="margin-top: 30px;">
-        <img
-          style="vertical-align: middle"
-          width="28"
-          height="28"
-          src="assets/chickpea.svg"
-        /><span style="vertical-align: middle">&nbsp;BLACK MARKET hummus + design collective.</span>
+        
+        <div id="landing-footer">
+            <img
+              style="vertical-align: middle"
+              width="28"
+              height="28"
+              src="assets/chickpea.svg"
+            /><span style="vertical-align: middle">&nbsp;BLACK MARKET hummus + design collective.</span>
+        </div>
     </div>
   `;
 }
