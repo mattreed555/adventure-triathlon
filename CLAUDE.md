@@ -28,7 +28,6 @@ This is a web application for "Adventure Triathlon 2025" - a fitness tracking ap
 - **External dependencies**: Uses CDN-hosted libraries including:
   - Twemoji for emoji rendering
   - RoughJS for hand-drawn style graphics (also used for sketchy borders on landing page)
-  - Runes for text processing
   - Wired Elements for UI components
   - Supabase for authentication and data persistence
 - **Data storage**: 

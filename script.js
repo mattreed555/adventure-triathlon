@@ -418,9 +418,31 @@ function updateDiversity() {
 }
 
 // ===== UI INTERACTION FUNCTIONS =====
+function splitEmojis(str) {
+  // Properly split emoji string handling multi-byte characters and grapheme clusters
+  if (!str) return [];
+  
+  // Use Intl.Segmenter if available (modern browsers)
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+    return Array.from(segmenter.segment(str), segment => segment.segment);
+  }
+  
+  // Fallback: match emoji patterns including modifiers, ZWJ sequences, etc.
+  const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Emoji_Component}|\uD83C[\uDFFB-\uDFFF]|\u200D[\u2640\u2642]\uFE0F?|[\u2600-\u27BF]|[\uD83C-\uDBFF\uDC00-\uDFFF]+)/gu;
+  const matches = str.match(emojiRegex);
+  
+  // If no matches or doesn't cover full string, use Array.from as last resort
+  if (!matches || matches.join('') !== str) {
+    return Array.from(str);
+  }
+  
+  return matches;
+}
+
 function setVibe(text, namePrefix) {
-  // Simple emoji splitting - works for most emojis
-  const emojis = Array.from(text || "");
+  // Properly split emojis handling multi-byte characters
+  const emojis = splitEmojis(text || "");
   const defaultBox = twemoji.parse("⚪️");
   
   for (let i = 1; i <= 3; i++) {
