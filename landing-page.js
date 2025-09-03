@@ -25,9 +25,9 @@ function createLandingHTML() {
                 </div>
                 <div class="feature">
                     <div class="feature-icon">
-                        <img src="assets/run-watercolor.svg" alt="Running">
+                        <img src="assets/run-watercolor.svg" alt="Stepping">
                     </div>
-                    <div style="font-family: 'Gloria Hallelujah', cursive;">Running</div>
+                    <div style="font-family: 'Gloria Hallelujah', cursive;">Stepping</div>
                 </div>
             </div>
         </div>
