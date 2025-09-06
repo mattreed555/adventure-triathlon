@@ -361,7 +361,7 @@ function updateActivityProgress(activityName, chartId, color, imagePath, dataKey
     createChart(appData[dataKey], appData[goalKey], chartElement, color, "#6B6B6B", appData[activeKey]);
   }
   
-  createChartNotes(activityName, appData[goalKey]);
+  createChartNotes(activityName, appData[goalKey], appData[dataKey]);
 }
 
 function updateSwimming() {
@@ -414,7 +414,7 @@ function updateDiversity() {
     createChart(allDiversityData, appData.diversityGoal, chartElement, "#8a7bab", "#6B6B6B", appData.diversityActive);
   }
   
-  createChartNotes("diversity", appData.diversityGoal);
+  createChartNotes("diversity", appData.diversityGoal, allDiversityData);
 }
 
 // ===== UI INTERACTION FUNCTIONS =====
@@ -1313,10 +1313,50 @@ function createNavButton(name, openFunc, closeFunc, enabled) {
 }
 
 // ===== CHART CREATION FUNCTIONS =====
-function createChartNotes(name, goal, friendlyName) {
+function createChartNotes(name, goal, data, friendlyName) {
   const descriptor = getElement(`${name}-progress-text`);
   if (descriptor) {
-    descriptor.textContent = `Getting closer to your goal of ${goal}`;
+    // Helper function to format numbers with commas
+    const formatWithCommas = (num) => {
+      return num > 999 ? num.toLocaleString() : num;
+    };
+    
+    // Determine the units based on the activity type
+    let units = '';
+    if (name === 'swim') {
+      units = ' yards';
+    } else if (name === 'steps') {
+      units = ' steps';
+    } else if (name === 'cycle') {
+      units = ' miles';
+    } else if (name === 'pick' && appData.pickUnits) {
+      units = ` ${appData.pickUnits}`;
+    } else if (name === 'diversity') {
+      units = ' activities';
+    }
+    
+    // Calculate current total
+    const currentTotal = data ? data.reduce((sum, val) => sum + val, 0) : 0;
+    
+    let text;
+    if (currentTotal >= goal) {
+      // Goal met or exceeded - celebration message
+      text = `🎉 You met your goal of ${formatWithCommas(goal)}${units}!`;
+      if (currentTotal > goal) {
+        const extra = currentTotal - goal;
+        text += ` And you've added ${formatWithCommas(extra)}${units} more!`;
+      }
+    } else if (currentTotal > 0) {
+      // Progress made but goal not met
+      text = `Getting closer to your goal of ${formatWithCommas(goal)}${units}`;
+      const remaining = goal - currentTotal;
+      text += `. You have ${formatWithCommas(remaining)}${units} to go!`;
+    } else {
+      // No progress yet
+      text = `Getting closer to your goal of ${formatWithCommas(goal)}${units}`;
+    }
+    
+    descriptor.textContent = text;
   }
   
   // Only set the name for activities that have a name element (like pick)
@@ -1636,7 +1676,7 @@ function CreateProgressDetail(name, elementId, percent, color, path, data, goal,
     svg.appendChild(text);
   }
   
-  createChartNotes(name, goal, friendlyName);
+  createChartNotes(name, goal, data, friendlyName);
   
   const chartElement = getElement(`${name}-progress-chart`);
   if (chartElement) {

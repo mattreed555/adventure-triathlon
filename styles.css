@@ -32,6 +32,13 @@ body {
   padding-right: 20px;
 }
 
+.progressDetailText {
+  word-wrap: break-word;
+  white-space: normal;
+  max-width: 360px;
+  margin: 10px auto;
+}
+
 .dialog {
   margin-left: 10px;
   display: flex;
