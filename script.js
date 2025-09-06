@@ -1035,17 +1035,30 @@ function shareProgress() {
   const month = date.getMonth() + 1;
   const day = date.getDate();
   
-  const diversityTexts = [
-    `${appData.diversityEmoji1}:${diversityCheckText(appData.diversityData1)}`,
-    `${appData.diversityEmoji2}:${diversityCheckText(appData.diversityData2)}`,
-    `${appData.diversityEmoji3}:${diversityCheckText(appData.diversityData3)}`,
-    `${appData.diversityEmoji4}:${diversityCheckText(appData.diversityData4)}`
-  ];
+  
+  var statusMessage = [];  
+  if (appData.swimActive) {
+    statusMessage.push(`🌊: ${values.swim}%`);
+  }
+  if (appData.cycleActive) {
+    statusMessage.push(`🚲: ${values.bike}%`);
+  }
+  if (appData.stepsActive) {
+    statusMessage.push(`👟: ${values.step}%`);
+  }
+  if (appData.pickActive) {
+    statusMessage.push(`${appData.pickEmoji}: ${values.pick}%`);
+  }
+  if (appData.diversityActive) {
+    statusMessage.push(`${appData.diversityEmoji1}:${diversityCheckText(appData.diversityData1)}`);
+    statusMessage.push(`${appData.diversityEmoji2}:${diversityCheckText(appData.diversityData2)}`);
+    statusMessage.push(`${appData.diversityEmoji3}:${diversityCheckText(appData.diversityData3)}`);
+    statusMessage.push(`${appData.diversityEmoji4}:${diversityCheckText(appData.diversityData4)}`);
+  }
   
   const toShare = `Adventure Triathlon ${month}/${day} 
 ${totalPercent}% of the way to my goal!
-🌊: ${values.swim}%, 🚲: ${values.bike}%, 👟: ${values.step}%, ${appData.pickEmoji}: ${values.pick}%
-${diversityTexts.join('\n')}`;
+${statusMessage.join('\n')}`;
   
   copyToClipboard(toShare).then(success => {
     if (success) {
