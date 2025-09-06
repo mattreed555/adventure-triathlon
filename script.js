@@ -489,7 +489,9 @@ function getDiversity(prefix) {
 
 function diversityCheckText(data) {
   const sum = data.reduce((acc, v) => acc + v, 0);
-  return '✅'.repeat(sum);
+  const checked = '✅'.repeat(sum);
+  const unchecked = '⬜'.repeat(4 - sum);
+  return checked + unchecked;
 }
 
 function switchTab(tab) {
@@ -533,6 +535,36 @@ function setGoals() {
       element.value = appData[mapping.data];
     }
   });
+  
+  // If diversity names are set but emojis are missing, look them up
+  for (let i = 1; i <= 4; i++) {
+    const nameData = appData[`diversityName${i}`];
+    const emojiData = appData[`diversityEmoji${i}`];
+    
+    if (nameData && !emojiData) {
+      // Find the activity by name and set its emoji
+      const activity = SUMMER_ACTIVITIES.find(a => a.name === nameData);
+      if (activity) {
+        appData[`diversityEmoji${i}`] = activity.emoji;
+        const emojiElement = getElement(`diverseEmoji${i}`);
+        if (emojiElement) {
+          emojiElement.value = activity.emoji;
+        }
+      }
+    }
+  }
+  
+  // Also fix pick emoji if name is set but emoji is missing
+  if (appData.pickName && !appData.pickEmoji) {
+    const pickActivity = SUMMER_ACTIVITIES.find(a => a.name === appData.pickName);
+    if (pickActivity) {
+      appData.pickEmoji = pickActivity.emoji;
+      const pickEmojiElement = getElement('pickEmoji');
+      if (pickEmojiElement) {
+        pickEmojiElement.value = pickActivity.emoji;
+      }
+    }
+  }
   
   const pickUnitsElement = getElement("pickUnitsValue");
   if (pickUnitsElement) {
@@ -1183,12 +1215,16 @@ function fillSelects() {
   if (randomButton) {
     randomButton.addEventListener("click", () => {
       const exclude = [];
-      ['diverseActivity1', 'diverseActivity2', 'diverseActivity3', 'diverseActivity4'].forEach(selectId => {
+      ['diverseActivity1', 'diverseActivity2', 'diverseActivity3', 'diverseActivity4'].forEach((selectId, index) => {
         const select = getElement(selectId);
         if (select) {
           const activity = getRandomActivity(exclude);
           select.value = activity.name;
           exclude.push(activity.name);
+          
+          // Also update the emoji field when using "Choose for Me"
+          const emojiElement = getElement(`diverseEmoji${index + 1}`);
+          if (emojiElement) emojiElement.value = activity.emoji;
         }
       });
     });
